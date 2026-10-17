@@ -36,7 +36,7 @@ jobs:
       run:
         working-directory: stacks/${{ inputs.stack }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ inputs.mode == 'apply' && vars.AWS_APPLY_ROLE_ARN || vars.AWS_PLAN_ROLE_ARN }}
