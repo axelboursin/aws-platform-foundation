@@ -19,7 +19,7 @@ jobs:
     name: fmt / tflint / trivy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "~1.16"
@@ -51,7 +51,7 @@ jobs:
           - stacks/40-identity
           - stacks/50-account-baseline
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "~1.16"
@@ -65,7 +65,7 @@ jobs:
     outputs:
       names: ${{ steps.list.outputs.names }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - id: list
         run: echo "names=$(yq -o=json -I=0 '[.accounts[].name]' config/accounts.yaml)" >> "$GITHUB_OUTPUT"
 
