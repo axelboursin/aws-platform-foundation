@@ -24,7 +24,7 @@ jobs:
         with:
           terraform_version: "~1.16"
       - run: terraform fmt -check -recursive
-      - uses: terraform-linters/setup-tflint@v4
+      - uses: terraform-linters/setup-tflint@v6
       - run: |
           tflint --init --config "$PWD/.tflint.hcl"
           tflint --recursive --config "$PWD/.tflint.hcl"
