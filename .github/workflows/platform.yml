@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "~1.16"
       - run: terraform fmt -check -recursive
@@ -52,7 +52,7 @@ jobs:
           - stacks/50-account-baseline
     steps:
       - uses: actions/checkout@v5
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "~1.16"
       - run: terraform -chdir=${{ matrix.dir }} init -backend=false
