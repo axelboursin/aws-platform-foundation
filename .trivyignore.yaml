@@ -1,0 +1,7 @@
+misconfigurations:
+  - id: AWS-0057
+    paths: ["stacks/00-bootstrap/main.tf"]
+    statement: >-
+      The management-account apply role needs AdministratorAccess to manage AWS Organizations.
+      Compensating controls: protected GitHub environment with required reviewers, main-only
+      trust subject, no workloads in the management account, organization CloudTrail.

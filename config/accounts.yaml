@@ -1,0 +1,47 @@
+# Account vending: add an entry, open a PR, the plan shows the new account.
+# OU paths: Security, Infrastructure, Workloads/Prod, Workloads/NonProd, Sandbox, Suspended
+accounts:
+  - name: log-archive
+    ou: Security
+    environment: shared
+    owner: platform
+
+  - name: security-tooling
+    ou: Security
+    environment: shared
+    owner: security
+
+  - name: shared-services
+    ou: Infrastructure
+    environment: shared
+    owner: platform
+    monthly_budget_usd: 100
+
+  - name: data-dev
+    ou: Workloads/NonProd
+    environment: dev
+    owner: data
+    owner_email: data-team@example.com
+    monthly_budget_usd: 200
+    github:
+      - repository: axelboursin/bess-iot-telemetry
+        role: bess-iot-plan
+        subjects: [pull_request]
+        managed_policies: [arn:aws:iam::aws:policy/ReadOnlyAccess]
+      - repository: axelboursin/bess-iot-telemetry
+        role: bess-iot-apply
+        subjects: [environment:production]
+        managed_policies: [arn:aws:iam::aws:policy/PowerUserAccess]
+
+  - name: data-prod
+    ou: Workloads/Prod
+    environment: prod
+    owner: data
+    owner_email: data-team@example.com
+    monthly_budget_usd: 800
+
+  - name: sandbox-axel
+    ou: Sandbox
+    environment: sandbox
+    owner: axel
+    monthly_budget_usd: 30

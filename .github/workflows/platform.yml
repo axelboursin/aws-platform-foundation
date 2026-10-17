@@ -1,0 +1,137 @@
+name: Platform
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+# One run at a time per branch: stacks share state and must apply in order.
+concurrency:
+  group: platform-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  static:
+    name: fmt / tflint / trivy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.16"
+      - run: terraform fmt -check -recursive
+      - uses: terraform-linters/setup-tflint@v4
+      - run: |
+          tflint --init --config "$PWD/.tflint.hcl"
+          tflint --recursive --config "$PWD/.tflint.hcl"
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          trivyignores: .trivyignore.yaml
+
+  test:
+    name: terraform test (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          - modules/scp
+          - modules/account_vending
+          - modules/github_oidc_role
+          - modules/permission_sets
+          - stacks/10-organization
+          - stacks/40-identity
+          - stacks/50-account-baseline
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.16"
+      - run: terraform -chdir=${{ matrix.dir }} init -backend=false
+      - run: terraform -chdir=${{ matrix.dir }} validate
+      - run: terraform -chdir=${{ matrix.dir }} test
+
+  accounts:
+    name: List accounts
+    runs-on: ubuntu-latest
+    outputs:
+      names: ${{ steps.list.outputs.names }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: list
+        run: echo "names=$(yq -o=json -I=0 '[.accounts[].name]' config/accounts.yaml)" >> "$GITHUB_OUTPUT"
+
+  # Pull requests: read-only plans of every stack and every account baseline ---
+
+  plan:
+    if: github.event_name == 'pull_request'
+    needs: [static, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: [10-organization, 20-log-archive, 30-security-services, 40-identity]
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      stack: ${{ matrix.stack }}
+      state_key: platform/${{ matrix.stack }}.tfstate
+      mode: plan
+
+  plan-baseline:
+    if: github.event_name == 'pull_request'
+    needs: [static, test, accounts]
+    strategy:
+      fail-fast: false
+      matrix:
+        account: ${{ fromJson(needs.accounts.outputs.names) }}
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      stack: 50-account-baseline
+      state_key: platform/50-account-baseline/${{ matrix.account }}.tfstate
+      mode: plan
+      extra_args: -var=account_name=${{ matrix.account }}
+
+  # main: apply in dependency order, behind the protected "management" environment
+
+  organization:
+    if: github.event_name == 'push'
+    needs: [static, test]
+    uses: ./.github/workflows/_terraform.yml
+    with: { stack: 10-organization, state_key: platform/10-organization.tfstate, mode: apply, environment: management }
+
+  log-archive:
+    needs: organization
+    uses: ./.github/workflows/_terraform.yml
+    with: { stack: 20-log-archive, state_key: platform/20-log-archive.tfstate, mode: apply, environment: management }
+
+  security-services:
+    needs: log-archive
+    uses: ./.github/workflows/_terraform.yml
+    with: { stack: 30-security-services, state_key: platform/30-security-services.tfstate, mode: apply, environment: management }
+
+  identity:
+    needs: organization
+    uses: ./.github/workflows/_terraform.yml
+    with: { stack: 40-identity, state_key: platform/40-identity.tfstate, mode: apply, environment: management }
+
+  baseline:
+    needs: [organization, accounts]
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        account: ${{ fromJson(needs.accounts.outputs.names) }}
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      stack: 50-account-baseline
+      state_key: platform/50-account-baseline/${{ matrix.account }}.tfstate
+      mode: apply
+      environment: management
+      extra_args: -var=account_name=${{ matrix.account }}

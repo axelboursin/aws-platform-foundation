@@ -1,0 +1,42 @@
+# Who can do what, where. Groups are synced from the IdP into Identity Center.
+# `accounts: all` expands to every member account.
+permission_sets:
+  PlatformAdmin:
+    description: Full administrator. Never assignable to prod or security accounts.
+    session_duration: PT1H
+    privileged: true
+    managed_policy_arns: [arn:aws:iam::aws:policy/AdministratorAccess]
+  PowerUser:
+    description: Everything except IAM and organization management
+    session_duration: PT4H
+    managed_policy_arns: [arn:aws:iam::aws:policy/PowerUserAccess]
+  DataEngineer:
+    description: Data services (S3, Glue, Athena, IoT, Firehose, Lake Formation) in non-prod
+    session_duration: PT8H
+    managed_policy_arns: [arn:aws:iam::aws:policy/ReadOnlyAccess]
+    inline_policy_file: policies/data-engineer.json
+  ReadOnly:
+    description: Read-only access
+    session_duration: PT8H
+    managed_policy_arns: [arn:aws:iam::aws:policy/ReadOnlyAccess]
+  SecurityAudit:
+    description: Security auditing
+    session_duration: PT4H
+    managed_policy_arns: [arn:aws:iam::aws:policy/SecurityAudit, arn:aws:iam::aws:policy/job-function/ViewOnlyAccess]
+
+assignments:
+  - group: platform-engineers
+    permission_set: PlatformAdmin
+    accounts: [shared-services, data-dev, sandbox-axel]
+  - group: platform-engineers
+    permission_set: ReadOnly
+    accounts: all
+  - group: data-engineers
+    permission_set: DataEngineer
+    accounts: [data-dev]
+  - group: data-engineers
+    permission_set: ReadOnly
+    accounts: [data-prod]
+  - group: security-auditors
+    permission_set: SecurityAudit
+    accounts: all

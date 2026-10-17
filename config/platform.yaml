@@ -1,0 +1,9 @@
+# Organization-wide settings.
+name: acme                       # short org prefix, used in account aliases and role names
+home_region: eu-west-3           # Paris: Identity Center, CloudTrail, Security Hub aggregation
+allowed_regions: [eu-west-3, eu-west-1]
+account_email:
+  local_part: aws                # aws+<account-name>@example.com
+  domain: example.com
+budget_alert_email: finops@example.com
+github_owner: axelboursin

@@ -1,0 +1,75 @@
+# Reusable: init + plan (+ apply) of one stack with GitHub OIDC credentials.
+name: terraform-stack
+
+on:
+  workflow_call:
+    inputs:
+      stack:
+        type: string
+        required: true
+      state_key:
+        type: string
+        required: true
+      mode:
+        type: string # plan | apply
+        required: true
+      extra_args:
+        type: string
+        default: ""
+      environment:
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      TF_VAR_state_bucket: ${{ vars.TF_STATE_BUCKET }}
+    defaults:
+      run:
+        working-directory: stacks/${{ inputs.stack }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ inputs.mode == 'apply' && vars.AWS_APPLY_ROLE_ARN || vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: gha-${{ github.run_id }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.16"
+          terraform_wrapper: false
+      - name: Init
+        run: >
+          terraform init
+          -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+          -backend-config="key=${{ inputs.state_key }}"
+          -backend-config="region=${{ vars.AWS_REGION }}"
+      - name: Plan
+        run: |
+          # Stacks that reach into member accounts assume a read-only role for
+          # plans and the org access role for applies. Passed as TF_VAR_ so
+          # stacks without this variable simply ignore it.
+          if [[ "${{ inputs.mode }}" == "apply" ]]; then
+            export TF_VAR_member_role_name=OrganizationAccountAccessRole
+          else
+            export TF_VAR_member_role_name=platform-terraform-plan
+          fi
+          set -o pipefail
+          terraform plan -out=tfplan ${{ inputs.extra_args }} 2>&1 | tee plan.log
+          {
+            echo "### ${{ inputs.stack }} ${{ inputs.extra_args }}"
+            echo '```'
+            grep -E '^(Plan:|No changes)' plan.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Apply
+        if: inputs.mode == 'apply'
+        run: terraform apply tfplan

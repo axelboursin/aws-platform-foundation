@@ -1,0 +1,8 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+tfplan
+plan.log
+backend.hcl
+crash.log
+.terraform.tfstate.lock.info

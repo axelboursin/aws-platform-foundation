@@ -1,0 +1,49 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DataServices",
+      "Effect": "Allow",
+      "Action": [
+        "athena:*",
+        "firehose:*",
+        "glue:*",
+        "iot:*",
+        "kinesis:*",
+        "lakeformation:GetDataAccess",
+        "s3:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PassDataServiceRoles",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::*:role/data/*",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "glue.amazonaws.com",
+            "firehose.amazonaws.com",
+            "iot.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "NoIdentityOrOrganizationChanges",
+      "Effect": "Deny",
+      "Action": [
+        "iam:Attach*",
+        "iam:Create*",
+        "iam:Delete*",
+        "iam:Detach*",
+        "iam:Put*",
+        "iam:Update*",
+        "organizations:*",
+        "account:*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
